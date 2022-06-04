@@ -35,43 +35,51 @@ func (m *Migration) String() string {
 }
 
 // Up runs an up migration.
+// Deprecated: please use UpWithFS
 func (m *Migration) Up(db *sql.DB) error {
-	if err := m.run(db, true); err != nil {
-		return err
-	}
-	return nil
+	return m.UpWithProvider(defaultProvider, db)
+}
+
+func (m *Migration) UpWithProvider(p *Provider, db *sql.DB) error {
+	return m.run(p, db, true)
 }
 
 // Down runs a down migration.
+// Deprecated: please use DownWithFS
 func (m *Migration) Down(db *sql.DB) error {
-	if err := m.run(db, false); err != nil {
-		return err
-	}
-	return nil
+	return m.DownWithProvider(defaultProvider, db)
 }
 
-func (m *Migration) run(db *sql.DB, direction bool) error {
+func (m *Migration) DownWithProvider(p *Provider, db *sql.DB) error {
+	return m.run(p, db, false)
+}
+
+func (m *Migration) run(p *Provider, db *sql.DB, direction bool) error {
+	if p == nil {
+		p = defaultProvider
+	}
+
 	switch filepath.Ext(m.Source) {
 	case ".sql":
-		f, err := baseFS.Open(m.Source)
+		f, err := p.baseFS.Open(m.Source)
 		if err != nil {
 			return errors.Wrapf(err, "ERROR %v: failed to open SQL migration file", filepath.Base(m.Source))
 		}
 		defer f.Close()
 
-		statements, useTx, err := parseSQLMigration(f, direction)
+		statements, useTx, err := parseSQLMigration(p, f, direction)
 		if err != nil {
 			return errors.Wrapf(err, "ERROR %v: failed to parse SQL migration file", filepath.Base(m.Source))
 		}
 
-		if err := runSQLMigration(db, statements, useTx, m.Version, direction, m.noVersioning); err != nil {
+		if err := runSQLMigration(p, db, statements, useTx, m.Version, direction, m.noVersioning); err != nil {
 			return errors.Wrapf(err, "ERROR %v: failed to run SQL migration", filepath.Base(m.Source))
 		}
 
 		if len(statements) > 0 {
-			log.Println("OK   ", filepath.Base(m.Source))
+			p.log.Println("OK   ", filepath.Base(m.Source))
 		} else {
-			log.Println("EMPTY", filepath.Base(m.Source))
+			p.log.Println("EMPTY", filepath.Base(m.Source))
 		}
 
 	case ".go":
@@ -97,12 +105,12 @@ func (m *Migration) run(db *sql.DB, direction bool) error {
 		}
 		if !m.noVersioning {
 			if direction {
-				if _, err := tx.Exec(GetDialect().insertVersionSQL(), m.Version, direction); err != nil {
+				if _, err := tx.Exec(p.dialect.insertVersionSQL(), m.Version, direction); err != nil {
 					tx.Rollback()
 					return errors.Wrap(err, "ERROR failed to execute transaction")
 				}
 			} else {
-				if _, err := tx.Exec(GetDialect().deleteVersionSQL(), m.Version); err != nil {
+				if _, err := tx.Exec(p.dialect.deleteVersionSQL(), m.Version); err != nil {
 					tx.Rollback()
 					return errors.Wrap(err, "ERROR failed to execute transaction")
 				}
@@ -114,9 +122,9 @@ func (m *Migration) run(db *sql.DB, direction bool) error {
 		}
 
 		if fn != nil {
-			log.Println("OK   ", filepath.Base(m.Source))
+			p.log.Println("OK   ", filepath.Base(m.Source))
 		} else {
-			log.Println("EMPTY", filepath.Base(m.Source))
+			p.log.Println("EMPTY", filepath.Base(m.Source))
 		}
 
 		return nil
@@ -126,7 +134,7 @@ func (m *Migration) run(db *sql.DB, direction bool) error {
 }
 
 // NumericComponent looks for migration scripts with names in the form:
-// XXX_descriptivename.ext where XXX specifies the version number
+// XXX_descriptive_name.ext where XXX specifies the version number
 // and ext specifies the type of migration
 func NumericComponent(name string) (int64, error) {
 	base := filepath.Base(name)
