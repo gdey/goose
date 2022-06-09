@@ -13,8 +13,8 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
-	"github.com/pressly/goose/v3/internal/check"
-	"github.com/pressly/goose/v3/internal/testdb"
+	"github.com/gdey/goose/v3/internal/check"
+	"github.com/gdey/goose/v3/internal/testdb"
 )
 
 const (
