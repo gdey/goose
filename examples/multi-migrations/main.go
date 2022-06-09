@@ -3,7 +3,6 @@ package main
 import (
 	"database/sql"
 	"flag"
-	"github.com/pressly/goose/v3"
 	"log"
 	"os"
 	"path/filepath"
@@ -11,8 +10,9 @@ import (
 
 	_ "modernc.org/sqlite"
 
-	"github.com/pressly/goose/v3/examples/multi-migrations/belle"
-	"github.com/pressly/goose/v3/examples/multi-migrations/pardi"
+	"github.com/gdey/goose/v3"
+	"github.com/gdey/goose/v3/examples/multi-migrations/belle"
+	"github.com/gdey/goose/v3/examples/multi-migrations/pardi"
 )
 
 var (

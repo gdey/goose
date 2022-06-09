@@ -10,7 +10,7 @@ import (
 	"runtime/debug"
 	"text/template"
 
-	"github.com/pressly/goose/v3"
+	"github.com/gdey/goose/v3"
 )
 
 var (

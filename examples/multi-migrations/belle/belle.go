@@ -2,7 +2,7 @@ package belle
 
 import (
 	"embed"
-	"github.com/pressly/goose/v3"
+	"github.com/gdey/goose/v3"
 )
 
 //go:embed [0-9]*_*.*
