@@ -8,10 +8,9 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/pressly/goose/v3"
-
 	_ "modernc.org/sqlite"
 
+	"github.com/pressly/goose/v3"
 	"github.com/pressly/goose/v3/examples/multi-migrations/belle"
 	"github.com/pressly/goose/v3/examples/multi-migrations/pardi"
 )
