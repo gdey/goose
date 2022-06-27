@@ -10,9 +10,23 @@ import (
 )
 
 type options struct {
-	allowMissing bool
-	applyUpByOne bool
-	noVersioning bool
+	allowMissing     bool
+	applyUpByOne     bool
+	noVersioning     bool
+	noOutput         bool
+	eventsChannel    chan<- Eventer
+	dontCloseChannel bool
+}
+
+func (o options) send(e Eventer) {
+	if o.eventsChannel == nil {
+		return
+	}
+	o.eventsChannel <- e
+}
+
+func (o options) shouldCloseEventsChannel() bool {
+	return o.eventsChannel != nil && !o.dontCloseChannel
 }
 
 type OptionsFunc func(o *options)
@@ -27,6 +41,17 @@ func WithNoVersioning() OptionsFunc {
 
 func withApplyUpByOne() OptionsFunc {
 	return func(o *options) { o.applyUpByOne = true }
+}
+
+func WithEvents(events chan<- Eventer, DontCloseChannelOnComplete bool) OptionsFunc {
+	return func(o *options) {
+		o.eventsChannel = events
+		o.dontCloseChannel = DontCloseChannelOnComplete
+	}
+}
+
+func WithNoOutput() OptionsFunc {
+	return func(o *options) { o.noOutput = true }
 }
 
 func applyOptions(opts []OptionsFunc) *options {
