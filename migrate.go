@@ -75,6 +75,69 @@ func (ms Migrations) Last() (*Migration, error) {
 	return ms[len(ms)-1], nil
 }
 
+// NumberOfMigrations returns the number of migrations that could be applied from the provided version number
+// if the current version number is not found then a -1 is returned
+// if -1 is passed in for the current version then the number of migrations in the set is returned
+// down indicates the direction of migration. If down is true, the current is used  to report the number
+// of migrations to get to back to the start of the migration sequence. Otherwise, it's the number of migrations
+// to get to the end of the migration sequence.
+func (ms Migrations) NumberOfMigrations(current int64, down bool) int {
+	if current == -1 {
+		return len(ms)
+	}
+	// find where in ms is current
+	for i := range ms {
+		if ms[i].Version == current {
+			if down {
+				return i
+			}
+			return len(ms) - i - 1
+		}
+	}
+	return -1
+}
+
+// NumberOfMigrationsTo returns the number of migrations that could be applied from the starting migration to
+// the given to migration. If the `to` migration does not exist it will be the migration that would be the next
+// on in line of the migrations depending on if the trend is going up or down, e.g. if `to - from > 0` then it's going
+// up if `to - from < 0` then it's going down. If `to - from == 0`, zero is returned.
+// if from migration is not found this function will panic
+func (ms Migrations) NumberOfMigrationsTo(from int64, to int64) int {
+	if to-from == 0 {
+		return 0
+	}
+	down := to-from < 0
+	idxTo, idxFrom := -1, -1
+	for i, m := range ms {
+		if m.Version == from {
+			idxFrom = i
+		}
+		// we expect `to` to be lower than from, if we go passed it
+		// then the move the version closes to the version requested
+		if m.Version == to || (m.Version > to && idxTo == -1) {
+			idxTo = i
+			if down {
+				idxTo--
+			}
+			continue
+		}
+	}
+	if idxFrom == -1 {
+		panic(fmt.Sprintf("did not find from version %v", from))
+	}
+	if idxTo == -1 {
+		idxTo = 0
+		if !down {
+			idxTo = len(ms)
+		}
+	}
+	if down {
+		return idxFrom - idxTo + 1
+	}
+	return idxTo - idxFrom + 1
+
+}
+
 // Versioned gets versioned migrations.
 func (ms Migrations) versioned() (Migrations, error) {
 	var migrations Migrations

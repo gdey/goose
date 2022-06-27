@@ -12,26 +12,43 @@ func Version(db *sql.DB, dir string, opts ...OptionsFunc) error {
 
 // Version prints the current version of the database.
 func (p *Provider) Version(db *sql.DB, dir string, opts ...OptionsFunc) error {
-	option := applyOptions(opts)
-	if option.noVersioning {
-		var current int64
-		migrations, err := p.CollectMigrations(dir, minVersion, maxVersion)
-		if err != nil {
-			return fmt.Errorf("failed to collect migrations: %w", err)
-		}
-		if len(migrations) > 0 {
-			current = migrations[len(migrations)-1].Version
-		}
-		p.log.Printf("goose: file version %v\n", current)
-		return nil
-	}
-
-	current, err := p.GetDBVersion(db)
+	migrationVersion, dbVersion, err := p.GetVersions(db, dir, opts...)
 	if err != nil {
 		return err
 	}
-	p.log.Printf("goose: version %v\n", current)
+	if migrationVersion != -1 {
+		p.log.Printf("goose: file version %v\n", migrationVersion)
+	}
+	if migrationVersion != -1 {
+		p.log.Printf("goose: version %v\n", dbVersion)
+	}
+
 	return nil
+}
+
+// GetVersion will return the current version of the migration, and database version, or -1, -1 if not
+// found or if there is an error
+// If db is nil, or the option.noVersioning is specificed, then the dbVersion will be -1.
+func (p *Provider) GetVersions(db *sql.DB, dir string, opts ...OptionsFunc) (migrationVersion int64, dbVersion int64, err error) {
+	if p == nil {
+		return -1, -1, nil
+	}
+	var (
+		option = applyOptions(opts)
+	)
+	migrationVersion, dbVersion = -1, -1
+	migrations, err := p.CollectMigrations(dir, minVersion, maxVersion)
+	if err != nil {
+		return -1, -1, fmt.Errorf("failed to collect migrations: %w", err)
+	}
+	if len(migrations) > 0 {
+		migrationVersion = migrations[len(migrations)-1].Version
+	}
+	if option.noVersioning {
+		return migrationVersion, dbVersion, nil
+	}
+	dbVersion, err = p.GetDBVersion(db)
+	return migrationVersion, dbVersion, err
 }
 
 // TableName returns goose db version table name

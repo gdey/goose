@@ -14,12 +14,15 @@ func Reset(db *sql.DB, dir string, opts ...OptionsFunc) error {
 // Reset rolls back all migrations
 func (p *Provider) Reset(db *sql.DB, dir string, opts ...OptionsFunc) error {
 	option := applyOptions(opts)
+	if option.shouldCloseEventsChannel() {
+		defer close(option.eventsChannel)
+	}
 	migrations, err := p.CollectMigrations(dir, minVersion, maxVersion)
 	if err != nil {
 		return fmt.Errorf("failed to collect migrations: %w", err)
 	}
 	if option.noVersioning {
-		return DownTo(db, dir, minVersion, opts...)
+		return p.DownTo(db, dir, minVersion, append(opts, withDontCloseChannel())...)
 	}
 
 	statuses, err := dbMigrationsStatus(p.dialect, db)
