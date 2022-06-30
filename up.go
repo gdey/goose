@@ -97,7 +97,6 @@ func (p *Provider) UpTo(db *sql.DB, dir string, version int64, opts ...OptionsFu
 
 	var current int64
 	for {
-		p.log.Println("GetDBVersion")
 		current, err = p.GetDBVersion(db)
 		if err != nil {
 			return err

@@ -34,7 +34,7 @@ func (m *Migration) String() string {
 }
 
 // Up runs an up migration.
-// Deprecated: please use UpWithFS
+// Deprecated: please use UpWithProvider
 func (m *Migration) Up(db *sql.DB) error {
 	return m.UpWithProvider(defaultProvider, db)
 }
@@ -44,7 +44,7 @@ func (m *Migration) UpWithProvider(p *Provider, db *sql.DB) error {
 }
 
 // Down runs a down migration.
-// Deprecated: please use DownWithFS
+// Deprecated: please use DownWithProvider
 func (m *Migration) Down(db *sql.DB) error {
 	return m.DownWithProvider(defaultProvider, db)
 }
