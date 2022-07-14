@@ -58,9 +58,13 @@ func newPostgres(opts ...OptionsFunc) (*sql.DB, func(), error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to create docker container: %v", err)
 	}
+	if option.debug {
+		log.Printf("Created docker container %v", container.Container.ID)
+	}
 	cleanup := func() {
 		if option.debug {
 			// User must manually delete the Docker container.
+			log.Printf("container(%v) has been left running!", container.Container.ID)
 			return
 		}
 		if err := pool.Purge(container); err != nil {
@@ -74,6 +78,9 @@ func newPostgres(opts ...OptionsFunc) (*sql.DB, func(), error) {
 		POSTGRES_PASSWORD,
 		POSTGRES_DB,
 	)
+	if option.debug {
+		log.Printf("psqlInfo: %v", psqlInfo)
+	}
 	var db *sql.DB
 	// Exponential backoff-retry, because the application in the container
 	// might not be ready to accept connections yet.

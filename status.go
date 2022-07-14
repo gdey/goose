@@ -33,14 +33,39 @@ func (se StatusEvent) AppliedString() string {
 	return se.AppliedAt.Format(time.ANSIC)
 }
 
-func (se StatusEvent) String() string {
+func (se StatusEvent) VersionedString() string {
 	if !se.Versioned {
 		return noVersioning
 	}
 	return se.AppliedString()
 }
 
+func (se StatusEvent) String() string {
+	return fmt.Sprintf("%s : %s (%d)", se.VersionedString(), se.Source, se.Version)
+}
+
 func (se StatusEvent) Script() string { return filepath.Base(se.Source) }
+
+func (se StatusEvent) IsEqual(e Eventer) bool {
+	otherSE, ok := e.(StatusEvent)
+	if !ok {
+		// check to see if it's a pointer
+		pSE, ok := e.(*StatusEvent)
+		if !ok || pSE == nil {
+			return false
+		}
+		otherSE = *pSE
+	}
+	return se.Versioned == otherSE.Versioned &&
+		se.AppliedAt.IsZero() == otherSE.AppliedAt.IsZero() &&
+		se.Version == otherSE.Version &&
+		se.Source == otherSE.Source
+}
+
+var (
+	_ = Eventer((*StatusEvent)(nil))
+	_ = Eventer(StatusEvent{})
+)
 
 // Status prints the status of all migrations.
 func Status(db *sql.DB, dir string, opts ...OptionsFunc) error {
@@ -57,7 +82,7 @@ func (p *Provider) Status(db *sql.DB, dir string, opts ...OptionsFunc) (err erro
 		defer close(options.eventsChannel)
 	}
 	go func() {
-		err = p.eventStatus(db, dir, events, options.noVersioning)
+		err = p.eventsStatus(db, dir, events, options.noVersioning)
 	}()
 	if !options.noOutput {
 		p.log.Println("    Applied At                  Migration")
@@ -77,9 +102,9 @@ func (p *Provider) Status(db *sql.DB, dir string, opts ...OptionsFunc) (err erro
 	return err
 }
 
-// eventStatus will send events to the provided channel, closing the channel after all events or an error is encountered.
+// eventsStatus will send events to the provided channel, closing the channel after all events or an error is encountered.
 // If an error is encountered it will be returned by the function
-func (p *Provider) eventStatus(db *sql.DB, dir string, eventsChannel chan<- Eventer, noVersioning bool) error {
+func (p *Provider) eventsStatus(db *sql.DB, dir string, eventsChannel chan<- Eventer, noVersioning bool) error {
 	if eventsChannel == nil {
 		return nil
 	}
@@ -108,15 +133,14 @@ func (p *Provider) eventStatus(db *sql.DB, dir string, eventsChannel chan<- Even
 
 	// we have a db so, let's get the versions of the database
 	q := p.dialect.migrationSQL()
-	var row MigrationRecord
 	for _, current := range migrations {
-		err := db.QueryRow(q, current.Version).Scan(&row.TStamp, &row.IsApplied)
+		var (
+			isApplied bool
+			at        time.Time
+		)
+		err := db.QueryRow(q, current.Version).Scan(&at, &isApplied)
 		if err != nil && err != sql.ErrNoRows {
 			return fmt.Errorf("failed to query the latest migration: %w", err)
-		}
-		var at time.Time
-		if row.IsApplied {
-			at = row.TStamp
 		}
 
 		eventsChannel <- StatusEvent{

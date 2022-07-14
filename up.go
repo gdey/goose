@@ -45,7 +45,7 @@ func withApplyUpByOne() OptionsFunc {
 }
 
 // WithEvents will publish events to the given channel, and close the channel upon the
-// compleation of the function.
+// completion of the function.
 func WithEvents(events chan<- Eventer, DontCloseChannelOnComplete bool) OptionsFunc {
 	return func(o *options) {
 		o.eventsChannel = events
@@ -59,7 +59,7 @@ func withDontCloseChannel() OptionsFunc {
 	return func(o *options) { o.dontCloseChannel = true }
 }
 
-// WithNoOutput will supress the output of the function
+// WithNoOutput will suppress the output of the function
 func WithNoOutput() OptionsFunc {
 	return func(o *options) { o.noOutput = true }
 }
@@ -79,8 +79,27 @@ type VersionCountEvent struct {
 	TotalVersionsLeft int
 }
 
+func (e VersionCountEvent) IsEqual(o Eventer) bool {
+	oe, ok := o.(VersionCountEvent)
+	if !ok {
+		poe, ok := o.(*VersionCountEvent)
+		if !ok || poe == nil {
+			return false
+		}
+		oe = *poe
+	}
+	return e.Version == oe.Version &&
+		e.VersionSource == oe.VersionSource &&
+		e.TotalVersionsLeft == oe.TotalVersionsLeft
+}
+
+var (
+	_ = Eventer((*VersionCountEvent)(nil))
+	_ = Eventer(VersionCountEvent{})
+)
+
 // VersionApplyEvent usually comes in pairs unless there is an error, the first event (with applied set to false) will be emmited
-// before the version is applied to the database, and the the applied version after the new version has been applied.
+// before the version is applied to the database, and the applied version after the new version has been applied.
 type VersionApplyEvent struct {
 	*Event
 	From       int64
@@ -93,6 +112,30 @@ type VersionApplyEvent struct {
 	Versioned  bool
 	Down       bool
 }
+
+func (e VersionApplyEvent) IsEqual(o Eventer) bool {
+	oe, ok := o.(VersionApplyEvent)
+	if !ok {
+		poe, ok := o.(*VersionApplyEvent)
+		if !ok || poe == nil {
+			return false
+		}
+		oe = *poe
+	}
+	return e.From == oe.From &&
+		e.FromSource == oe.FromSource &&
+		e.To == oe.To &&
+		e.ToSource == oe.ToSource &&
+		e.Missing == oe.Missing &&
+		e.Applied == oe.Applied &&
+		e.Versioned == oe.Versioned &&
+		e.Down == oe.Down
+}
+
+var (
+	_ = Eventer((*VersionApplyEvent)(nil))
+	_ = Eventer(VersionApplyEvent{})
+)
 
 // UpTo migrates up to a specific version.
 func UpTo(db *sql.DB, dir string, version int64, opts ...OptionsFunc) error {
