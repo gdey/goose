@@ -80,9 +80,8 @@ func (p *Provider) Verify(dir string) VerifyStatus {
 		if getExtension(m.Source) != ".tpl.sql" {
 			continue
 		}
-		_, err := parseExecuteTplSql(p.baseFS, m.Source, p.packageName)
-		status |= VerifyStatusTplSql
-		if err != nil {
+		if _, err := parseExecuteTplSql(p.baseFS, m.Source, p.packageName); err != nil {
+			status |= VerifyStatusTplSql
 			errs = append(errs, err)
 		}
 	}
@@ -90,9 +89,8 @@ func (p *Provider) Verify(dir string) VerifyStatus {
 		if getExtension(m.Source) != ".tpl.sql" {
 			continue
 		}
-		_, err := parseExecuteTplSql(p.baseFS, m.Source, p.packageName)
-		status |= VerifyStatusTplSql
-		if err != nil {
+		if _, err := parseExecuteTplSql(p.baseFS, m.Source, p.packageName); err != nil {
+			status |= VerifyStatusTplSql
 			errs = append(errs, err)
 		}
 	}

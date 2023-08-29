@@ -39,9 +39,7 @@ func (p *Provider) CreateWithTemplate(_ *sql.DB, dir string, tmpl *template.Temp
 		migrationType = "tpl.sql"
 	}
 	version := timefn().Format(p.timestampFormat)
-	if p.baseDir != "" && (dir == "" || dir == ".") {
-		dir = p.baseDir
-	}
+	dir = p.BaseDir(dir)
 	if p.sequential {
 		// always use DirFS here because it's modifying operation
 		migrations, err := p.collectMigrationsFS(osFS{}, dir, minVersion, maxVersion)

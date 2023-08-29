@@ -163,3 +163,10 @@ func NewProvider(options ...providerOptions) *Provider {
 	}
 	return p
 }
+
+func (p *Provider) BaseDir(dir string) string {
+	if p.baseDir != "" && (dir == "" || dir == ".") {
+		return p.baseDir
+	}
+	return dir
+}

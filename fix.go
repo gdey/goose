@@ -12,9 +12,7 @@ const seqVersionTemplate = "%05v"
 func Fix(dir string) error { return defaultProvider.Fix(dir) }
 
 func (p *Provider) Fix(dir string) error {
-	if p.baseDir != "" && (dir == "" || dir == ".") {
-		dir = p.baseDir
-	}
+	dir = p.BaseDir(dir)
 	// always use osFS here because it's modifying operation
 	migrations, err := p.collectMigrationsFS(osFS{}, dir, minVersion, maxVersion)
 	if err != nil {
