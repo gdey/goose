@@ -1,12 +1,16 @@
 package goose
 
 import (
+	"bytes"
 	"database/sql"
 	"errors"
 	"fmt"
+	"io"
+	"io/fs"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 )
 
@@ -53,33 +57,105 @@ func (m *Migration) DownWithProvider(p *Provider, db *sql.DB) error {
 	return m.run(p, db, false)
 }
 
+// runSql will parse out the sql statements from the given io.Reader for the direction, and apply them to the
+// provided db connection
+func (m *Migration) runSql(f io.Reader, p *Provider, db *sql.DB, direction bool) error {
+	statements, useTx, err := parseSQLMigration(p, f, direction)
+	if err != nil {
+		return ErrMigrationSQLParse{
+			Filename:  filepath.Base(m.Source),
+			ErrUnwrap: ErrUnwrap{err},
+			Up:        direction,
+		}
+	}
+
+	if err := runSQLMigration(p, db, statements, useTx, m.Version, direction, m.noVersioning); err != nil {
+		return fmt.Errorf("ERROR %v: failed to run SQL migration: %w", filepath.Base(m.Source), err)
+	}
+
+	if len(statements) > 0 {
+		p.log.Println("OK   ", filepath.Base(m.Source))
+		return nil
+	}
+
+	p.log.Println("EMPTY", filepath.Base(m.Source))
+	return nil
+}
+
+func getExtension(s string) string {
+	b := []byte(filepath.Base(s)) // shadow
+	i := bytes.LastIndexByte(b, '.')
+	if i == -1 {
+		return ""
+	}
+	ext := b[i:]
+	if i = bytes.LastIndexByte(b[:i], '.'); i == -1 {
+		return string(ext)
+	}
+	return string(b[i:])
+}
+
+func (m *Migration) parseAndRunSQLMigration(p *Provider, db *sql.DB, f io.Reader, direction bool) error {
+	statements, useTx, err := parseSQLMigration(p, f, direction)
+	if err != nil {
+		return fmt.Errorf("ERROR %v: failed to parse SQL migration file: %w", filepath.Base(m.Source), err)
+	}
+
+	if err := runSQLMigration(p, db, statements, useTx, m.Version, direction, m.noVersioning); err != nil {
+		return fmt.Errorf("ERROR %v: failed to run SQL migration: %w", filepath.Base(m.Source), err)
+	}
+
+	if len(statements) > 0 {
+		p.log.Println("OK   ", filepath.Base(m.Source))
+	} else {
+		p.log.Println("EMPTY", filepath.Base(m.Source))
+	}
+	return nil
+}
+
+func parseExecuteTplSql(filesys fs.FS, source, packageName string) (*bytes.Buffer, error) {
+	type tplValue struct {
+		Filename    string
+		PackageName string
+	}
+	var buff bytes.Buffer
+	baseSource := filepath.Base(source)
+	tpl, err := template.ParseFS(filesys, source)
+	if err != nil {
+		return nil, fmt.Errorf("ERROR %v: failed to open/parse template SQL migration file: %w", baseSource, err)
+	}
+	if err = tpl.Execute(&buff, tplValue{
+		Filename:    baseSource,
+		PackageName: packageName,
+	}); err != nil {
+		return nil, fmt.Errorf("ERROR %v: failed to execute template SQL migration file: %w", baseSource, err)
+	}
+	return &buff, nil
+
+}
+
 func (m *Migration) run(p *Provider, db *sql.DB, direction bool) error {
 	if p == nil {
 		p = defaultProvider
 	}
 
-	switch filepath.Ext(m.Source) {
+	switch ext := getExtension(m.Source); ext {
+	default:
+		return ErrUnknownExtension{Extension: ext}
 	case ".sql":
 		f, err := p.baseFS.Open(m.Source)
 		if err != nil {
 			return fmt.Errorf("ERROR %v: failed to open SQL migration file: %w", filepath.Base(m.Source), err)
 		}
 		defer f.Close()
+		return m.parseAndRunSQLMigration(p, db, f, direction)
 
-		statements, useTx, err := parseSQLMigration(p, f, direction)
+	case ".tpl.sql":
+		buff, err := parseExecuteTplSql(p.baseFS, m.Source, p.packageName)
 		if err != nil {
-			return fmt.Errorf("ERROR %v: failed to parse SQL migration file: %w", filepath.Base(m.Source), err)
+			return err
 		}
-
-		if err := runSQLMigration(p, db, statements, useTx, m.Version, direction, m.noVersioning); err != nil {
-			return fmt.Errorf("ERROR %v: failed to run SQL migration: %w", filepath.Base(m.Source), err)
-		}
-
-		if len(statements) > 0 {
-			p.log.Println("OK   ", filepath.Base(m.Source))
-		} else {
-			p.log.Println("EMPTY", filepath.Base(m.Source))
-		}
+		return m.parseAndRunSQLMigration(p, db, buff, direction)
 
 	case ".go":
 		if !m.Registered {
@@ -128,8 +204,6 @@ func (m *Migration) run(p *Provider, db *sql.DB, direction bool) error {
 
 		return nil
 	}
-
-	return nil
 }
 
 // NumericComponent looks for migration scripts with names in the form:

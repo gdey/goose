@@ -12,7 +12,7 @@ Goose supports [embedding SQL migrations](#embedded-sql-migrations), which means
 
 ### Goals of this fork
 
-`github.com/gdey/goose` is a fork of `bitbucket.org/liamstask/goose` with the following changes:
+`github.com/gdey/goose` is a Hard fork of `bitbucket.org/liamstask/goose` with the following changes:
 - No config files
 - [Default goose binary](./cmd/goose/main.go) can migrate SQL files only
 - Go migrations:
@@ -184,6 +184,8 @@ Print the status of all migrations:
 Note: for MySQL [parseTime flag](https://github.com/go-sql-driver/mysql#parsetime) must be enabled.
 
 Note: for MySQL [`multiStatements`](https://dev.mysql.com/doc/internals/en/multi-statement.html) must be enabled. This is required when writing multiple queries separated by ';' characters in a single sql file.
+
+## verify 
 
 ## version
 

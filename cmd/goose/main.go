@@ -77,6 +77,13 @@ func main() {
 			log.Fatalf("goose run: %v", err)
 		}
 		return
+	case "verify":
+		status := goose.Verify(*dir)
+		if status.Error != nil {
+			log.Printf("got the following error:\n%v\n", status.Error)
+		}
+		os.Exit(status.Status)
+		return
 	}
 
 	args = mergeArgs(args)
@@ -88,7 +95,7 @@ func main() {
 	driver, dbstring, command := args[0], args[1], args[2]
 	// To avoid breaking existing consumers, treat sqlite3 as sqlite.
 	// An implementation detail that consumers should not care which
-	// underlying driver is used. Internally uses the CGo-free port
+	// underlying driver is used. Internally use the CGo-free port
 	// of SQLite: modernc.org/sqlite
 	if driver == "sqlite3" {
 		driver = "sqlite"
@@ -181,6 +188,7 @@ Examples:
     goose sqlite3 ./foo.db create add_some_column sql
     goose sqlite3 ./foo.db create fetch_user_data go
     goose sqlite3 ./foo.db up
+    goose sqlite3 ./foo.db verify
 
     goose postgres "user=postgres dbname=postgres sslmode=disable" status
     goose mysql "user:password@/dbname?parseTime=true" status
@@ -209,8 +217,9 @@ Commands:
     reset                Roll back all migrations
     status               Dump the migration status for the current DB
     version              Print the current version of the database
-    create NAME [sql|go] Creates new migration file with the current timestamp
+    create NAME [tpl|sql|go] Creates new migration file with the current timestamp
     fix                  Apply sequential ordering to migrations
+    verify               Check to see if there are any timestamp-based sql files, or if template sqls don't parse 
 `
 )
 

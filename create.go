@@ -35,6 +35,9 @@ func (p *Provider) CreateWithTemplate(_ *sql.DB, dir string, tmpl *template.Temp
 	if p.timeFn == nil {
 		timefn = time.Now
 	}
+	if migrationType == "tpl" {
+		migrationType = "tpl.sql"
+	}
 	version := timefn().Format(p.timestampFormat)
 	if p.baseDir != "" && (dir == "" || dir == ".") {
 		dir = p.baseDir

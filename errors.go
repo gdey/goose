@@ -5,6 +5,12 @@ import (
 	"strings"
 )
 
+type ErrUnwrap struct {
+	Err error
+}
+
+func (err ErrUnwrap) Unwrap() error { return err.Err }
+
 type MissingMigrations struct {
 	Version int64
 	Source  string
@@ -29,4 +35,31 @@ func MissingMigrationsErrFromMigrations(migrations Migrations) (err MissingMigra
 		err.MissingMigrations[i].Version, err.MissingMigrations[i].Source = m.Version, m.Source
 	}
 	return err
+}
+
+type ErrUnknownExtension struct {
+	Extension string
+}
+
+func (err ErrUnknownExtension) Error() string {
+	var str strings.Builder
+	str.WriteString("unknown extension ")
+	str.WriteString(err.Extension)
+	return str.String()
+}
+
+type ErrMigrationSQLParse struct {
+	Filename string
+	Up       bool
+
+	ErrUnwrap
+}
+
+func (err ErrMigrationSQLParse) Error() string {
+	var str strings.Builder
+	str.WriteString("Error ")
+	str.WriteString(err.Filename)
+	str.WriteString(": failed to parse SQL migration file: ")
+	str.WriteString(err.Err.Error())
+	return str.String()
 }

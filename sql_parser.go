@@ -30,7 +30,7 @@ func (s *stateMachine) Get() parserState {
 	return parserState(*s)
 }
 func (s *stateMachine) Set(new parserState) {
-	// Do not want to break contract, so for this one, we will just
+	// Do not want to break the contract, so for this one, we will just
 	// use the defaultProvider
 	defaultProvider.verboseInfo("StateMachine: %v => %v", *s, new)
 	*s = stateMachine(new)
