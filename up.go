@@ -16,6 +16,8 @@ type options struct {
 	noOutput         bool
 	eventsChannel    chan<- Eventer
 	dontCloseChannel bool
+	// sequentialVersionsOnly will only allow up to apply if only sequential version files exist
+	sequentialVersionsOnly bool
 }
 
 // send will sent the event over the eventsChannel if it is not nil
@@ -38,6 +40,12 @@ func WithAllowMissing() OptionsFunc {
 
 func WithNoVersioning() OptionsFunc {
 	return func(o *options) { o.noVersioning = true }
+}
+
+// WithOnlySequentialVersions states that Up should error if there are any timestamp based version files.
+// Up will only run if the only version files left are sequential.
+func WithOnlySequentialVersions() OptionsFunc {
+	return func(o *options) { o.sequentialVersionsOnly = true }
 }
 
 func withApplyUpByOne() OptionsFunc {
@@ -150,6 +158,17 @@ func (p *Provider) UpTo(db *sql.DB, dir string, version int64, opts ...OptionsFu
 	foundMigrations, err := p.CollectMigrations(dir, minVersion, version)
 	if err != nil {
 		return err
+	}
+
+	if options.sequentialVersionsOnly {
+		tsVers, _ := foundMigrations.timestamped()
+		if len(tsVers) > 0 {
+			// we should error as there are timestamped version;
+			// and we have been asked to only apply sequential version number.
+			return ErrTimestampVersionsExist{
+				Migrations: tsVers,
+			}
+		}
 	}
 
 	if options.noVersioning {

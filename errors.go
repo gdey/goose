@@ -63,3 +63,11 @@ func (err ErrMigrationSQLParse) Error() string {
 	str.WriteString(err.Err.Error())
 	return str.String()
 }
+
+type ErrTimestampVersionsExist struct {
+	Migrations Migrations
+}
+
+func (err ErrTimestampVersionsExist) Error() string {
+	return "Timestamp migrations exists"
+}

@@ -57,6 +57,17 @@ func (m *Migration) DownWithProvider(p *Provider, db *sql.DB) error {
 	return m.run(p, db, false)
 }
 
+// IsTimestamp returns weather the migration version can be considered to be a timestamp version, v.s. a Seq version. This means that the user can never have more than
+// 19700101000000 migrations
+func (m *Migration) IsTimestamp() bool {
+
+	// parse version as timestamp
+	// assume that the user will never have more than 19700101000000 migrations
+	versionTime, err := time.Parse(timestampFormat, fmt.Sprintf("%d", m.Version))
+	return err == nil && versionTime.After(epoc)
+
+}
+
 // runSql will parse out the sql statements from the given io.Reader for the direction, and apply them to the
 // provided db connection
 func (m *Migration) runSql(f io.Reader, p *Provider, db *sql.DB, direction bool) error {

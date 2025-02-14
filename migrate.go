@@ -144,10 +144,7 @@ func (ms Migrations) versioned() (Migrations, error) {
 
 	// assume that the user will never have more than 19700101000000 migrations
 	for _, m := range ms {
-		// parse version as timestamp
-		versionTime, err := time.Parse(timestampFormat, fmt.Sprintf("%d", m.Version))
-
-		if versionTime.Before(time.Unix(0, 0)) || err != nil {
+		if !m.IsTimestamp() {
 			migrations = append(migrations, m)
 		}
 	}
@@ -161,14 +158,7 @@ func (ms Migrations) timestamped() (Migrations, error) {
 
 	// assume that the user will never have more than 19700101000000 migrations
 	for _, m := range ms {
-		// parse version as timestamp
-		versionTime, err := time.Parse(timestampFormat, fmt.Sprintf("%d", m.Version))
-		if err != nil {
-			// probably not a timestamp
-			continue
-		}
-
-		if versionTime.After(time.Unix(0, 0)) {
+		if m.IsTimestamp() {
 			migrations = append(migrations, m)
 		}
 	}
@@ -408,3 +398,8 @@ func (p *Provider) GetDBVersion(db *sql.DB) (int64, error) {
 
 	return version, nil
 }
+
+var (
+	// epoc is used to determine if a version number is sequencial or a timestamp
+	epoc = time.Unix(0, 0)
+)
